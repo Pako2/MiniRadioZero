@@ -1,0 +1,5 @@
+.pio
+.vscode
+compile_commands.json
+partition_table_from_flash.bin
+scripts/__pycache__/*

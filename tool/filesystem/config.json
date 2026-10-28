@@ -1,0 +1,63 @@
+{
+  "defvol": 50,
+  "defstat": 0,
+  "hostname": "MiniRadioZero",
+  "ntp": {
+    "server": "cz.pool.ntp.org",
+    "interval": 15,
+    "timezone": "CET-1CEST,M3.5.0,M10.5.0/3",
+    "tzname": "Europe/Prague"
+  },
+  "radio": [
+    {
+      "name": "ČRo Dvojka",
+      "url": "http://rozhlas.stream/dvojka_high.aac"
+    },
+    {
+      "name": "ČRo Radiožurnál",
+      "url": "https://rozhlas.stream/radiozurnal_high.aac"
+    }
+  ],
+  "scheduler": {
+    "sched_enabled": 1,
+    "unmute": 1,
+    "items": [
+      {
+        "label": "Default",
+        "time": "00:00",
+        "wdays": "0123456",
+        "station": 0
+      },
+      {
+        "label": "Meteor",
+        "time": "08:00",
+        "wdays": "6",
+        "station": 0
+      }
+    ]
+  },
+  "network": [
+    {
+      "location": "Work",
+      "wifibssid": "",
+      "wifipass": "ihgf2345",
+      "ssid": "Work",
+      "dhcp": 1,
+      "ipaddress": "",
+      "subnet": "",
+      "dnsadd": "",
+      "gateway": ""
+    },
+    {
+      "location": "Home",
+      "wifibssid": "",
+      "wifipass": "abcd9876",
+      "ssid": "Home",
+      "dhcp": 0,
+      "ipaddress": "192.168.3.231",
+      "subnet": "255.255.255.0",
+      "dnsadd": "192.168.3.1",
+      "gateway": "192.168.3.1"
+    }
+  ]
+}
