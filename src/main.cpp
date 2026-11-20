@@ -14,8 +14,6 @@
 #include "esp_log.h"
 #include "esp_sntp.h"
 #include "esp_heap_caps.h"
-// #include <stdio.h>
-// #include <stdlib.h>
 
 #define FSIF true // Format LittleFS if not existing
 #define MAXPRESETS 16
@@ -39,13 +37,12 @@
 
 const char *TAG = "main"; // For debug lines
 
-const uint32_t GREEN = Adafruit_NeoPixel::Color(0, 150, 0);
-const uint32_t RED = Adafruit_NeoPixel::Color(150, 0, 0);
-const uint32_t BLUE = Adafruit_NeoPixel::Color(0, 0, 150);
-const uint32_t YELLOW = Adafruit_NeoPixel::Color(150, 35, 0);
-const uint32_t PURPLE = Adafruit_NeoPixel::Color(150, 0, 150);
-const uint32_t CYAN = Adafruit_NeoPixel::Color(0, 150, 150);
-const uint32_t WHITE = Adafruit_NeoPixel::Color(150, 150, 150);
+const uint32_t GREEN = Adafruit_NeoPixel::Color(0, 255, 0);
+const uint32_t RED = Adafruit_NeoPixel::Color(255, 0, 0);
+const uint32_t BLUE = Adafruit_NeoPixel::Color(0, 0, 255);
+const uint32_t PURPLE = Adafruit_NeoPixel::Color(130, 0, 130);
+const uint32_t CYAN = Adafruit_NeoPixel::Color(0, 130, 130);
+const uint32_t WHITE = Adafruit_NeoPixel::Color(100, 100, 100);
 
 struct PRESET
 {
@@ -108,6 +105,12 @@ int8_t oldschedule = 126;
 uint32_t delay_ = 0;
 uint8_t reqvol = 50; // volume
 uint8_t defstat;     // Default station (<- tripleclick)
+char ledOrder[4] = "GRB";
+int ledBright = 66;
+int yellowRatio = 50;
+char testOrder[4] = "GRB";
+int testBright = 66;
+int testRedPct = 50;
 char hostname[24] = "MiniRadioZero";
 bool muteflag = false;    // Mute output
 hw_timer_t *timer = NULL; // For timer
@@ -125,6 +128,9 @@ bool sw_state;             // True is pushed (LOW)
 int16_t eqcount = 0;       // Counter for equal number of clicks
 int16_t oldclickcount = 0; // To detect difference
 bool shouldReboot = false; // After longclick
+bool shouldAP = false;
+unsigned long ledPreviewUntil = 0;
+uint32_t currentStatusColor = 0; // Pamatuje si poslední stavovou barvu rádia
 
 // Rotary encoder stuff
 uint16_t clickcount = 0;     // Incremented per encoder click
@@ -169,10 +175,29 @@ Audio audio;
 // Forward declaration
 void WiFiEvent(WiFiEvent_t, arduino_event_info_t);
 
+bool saveConfigFile(const char *jsonContent);
+// Tato funkce by měla naplnit předaný buffer obsahem souboru a vrátit true při úspěchu
+bool loadConfigFileToBuffer(char *buffer, size_t bufferSize);
+const size_t PORTAL_BUFFER_SIZE = 16384;
+EXT_RAM_BSS_ATTR char serialInputBuffer[PORTAL_BUFFER_SIZE];
+size_t serialWriteIndex = 0;
+
 char *cpycharar(char *destination, const char *source, size_t num)
 {
   destination[0] = '\0';
   return strncat(destination, source, num);
+}
+
+void setStatusLed(uint32_t color)
+{
+  currentStatusColor = color; // It always saves the color the radio should correctly display.
+
+  // If a live view is currently running from the web portal, we do not overwrite the physical LED.
+  if (millis() < ledPreviewUntil)
+    return;
+
+  led.setPixelColor(0, color);
+  led.show();
 }
 
 //**************************************************************************************************
@@ -313,8 +338,7 @@ void chk_enc()
     {
       enc_inactivity = 0;
       enc_menu_mode = VOLUME; // Return to VOLUME mode
-      led.setPixelColor(0, GREEN);
-      led.show();
+      setStatusLed(GREEN);
       ESP_LOGI(TAG, "Encoder mode back to VOLUME");
     }
   }
@@ -332,8 +356,7 @@ void chk_enc()
     ESP_LOGI(TAG, "Triple click");
     tripleclick = false;
     currstat = defstat;
-    led.setPixelColor(0, PURPLE);
-    led.show();
+    setStatusLed(PURPLE);
     delay_ = millis(); // RESET to default radio station !
   }
   if (doubleclick) // Handle the doubleclick
@@ -341,8 +364,7 @@ void chk_enc()
     ESP_LOGI(TAG, "Double click");
     doubleclick = false;
     enc_menu_mode = PRESET; // Swich to PRESET mode
-    led.setPixelColor(0, BLUE);
-    led.show();
+    setStatusLed(BLUE);
     ESP_LOGI(TAG, "Encoder mode set to PRESET");
   }
   if (singleclick)
@@ -357,14 +379,12 @@ void chk_enc()
       if (muteflag)
       {
         audio.setVolume(0);
-        led.setPixelColor(0, RED);
-        led.show();
+        setStatusLed(RED);
       }
       else
       {
         audio.setVolume(reqvol);
-        led.setPixelColor(0, GREEN);
-        led.show();
+        setStatusLed(GREEN);
       }
       break;
     case PRESET:
@@ -376,8 +396,7 @@ void chk_enc()
         muteflag = false;
         audio.setVolume(reqvol);
       }
-      led.setPixelColor(0, GREEN);
-      led.show();
+      setStatusLed(GREEN);
       break;
     default:
       break;
@@ -414,8 +433,7 @@ void chk_enc()
     audio.setVolume(reqvol);
     if (muteflag)
     {
-      led.setPixelColor(0, GREEN);
-      led.show();
+      setStatusLed(GREEN);
     }
     muteflag = false; // Mute off
     break;
@@ -695,14 +713,294 @@ int cmpfunc(const void *a, const void *b)
   return ((scheduleA->minutes) - (scheduleB->minutes));
 }
 
+/**
+ * Reads config.json from LittleFS directly into PSRAM and sends it to Serial with a prefix.
+ * No heap allocation occurs here.
+ */
+void handleGetConfig()
+{
+  EXT_RAM_BSS_ATTR static char fileBuffer[PORTAL_BUFFER_SIZE];
+
+  // Load the file into a buffer (even a multi-line one)
+  if (loadConfigFileToBuffer(fileBuffer, PORTAL_BUFFER_SIZE))
+  {
+
+    // We validate it and compress it into a single line using ArduinoJson
+    JsonDocument doc;
+    DeserializationError error = deserializeJson(doc, fileBuffer);
+
+    if (!error)
+    {
+      Serial.println(); // Safety check for an empty line
+      Serial.print("CONFIG_DATA:");
+
+      // prints everything onto a single line !!!!!!
+      serializeJson(doc, Serial);
+      Serial.println(); // End of line for the browser
+    }
+    else
+    {
+      Serial.println("\nCONFIG_DATA:{\"error\":\"Invalid local JSON file\"}");
+    }
+  }
+  else
+  {
+    Serial.println("\nCONFIG_DATA:{\"error\":\"Failed to load config.json\"}");
+  }
+}
+
+/**
+ * Processes the received JSON, mutes the audio, validates the JSON, writes it to the file system, and restarts the chip.
+ */
+void handleSetConfig(const char *fullPayload)
+{
+  // 1. We will stop the audio (assuming your instance)
+  audio.stopSong();
+  Serial.println("DEBUG: Processing incoming configuration layout...");
+
+  // 2. KEY FIX: Find the exact position of the text "SET_CONFIG:" within the string
+  // This completely strips out any debug output that might have gotten mixed into the buffer!
+  const char *commandMarker = strstr(fullPayload, "SET_CONFIG:");
+
+  if (commandMarker == NULL)
+  {
+    Serial.println("DEBUG: Error - SET_CONFIG: prefix not found in buffer.");
+    return;
+  }
+
+  // The JSON begins exactly 11 characters after the start of the found "SET_CONFIG:"
+  const char *jsonStart = commandMarker + 11;
+
+  // 3. Validation via ArduinoJson v7 directly from PSRAM
+  JsonDocument doc;
+  DeserializationError error = deserializeJson(doc, jsonStart);
+
+  if (error)
+  {
+    Serial.print("DEBUG: JSON Deserialization failed: ");
+    Serial.println(error.c_str());
+
+    // For diagnostic purposes, you can print out here what was fed into the fixed parser:
+    Serial.print("DEBUG: Broken text segment was: ");
+    Serial.println(jsonStart);
+    return;
+  }
+
+  // 4. If the JSON is valid, we serialize it and write it to LittleFS.
+  EXT_RAM_BSS_ATTR static char serializeBuffer[PORTAL_BUFFER_SIZE];
+  // serializeJson(doc, serializeBuffer, PORTAL_BUFFER_SIZE);
+  serializeJsonPretty(doc, serializeBuffer, PORTAL_BUFFER_SIZE);
+
+  if (saveConfigFile(serializeBuffer))
+  {
+    Serial.println("DEBUG: Configuration written to LittleFS successfully.");
+    Serial.println("DEBUG: Rebooting ESP32-S3 now...");
+    delay(500);
+    ESP.restart();
+  }
+  else
+  {
+    Serial.println("DEBUG: Failed to save incoming configuration to LittleFS.");
+  }
+}
+
+void handleLedTest(const char *params)
+{
+
+  // Expects a format such as "GRB 66 50"
+  if (sscanf(params, "%3s %d %d", testOrder, &testBright, &testRedPct) == 3)
+  {
+    testBright = constrain(testBright, 0, 100);
+    testRedPct = constrain(testRedPct, 0, 100);
+
+    uint8_t r = (255 * testRedPct) / 100;
+    uint8_t g = 255 - r;
+
+    led.updateType((strcmp(testOrder, "RGB") == 0 ? NEO_RGB : NEO_GRB) + NEO_KHZ800);
+    led.setBrightness((255 * testBright) / 100);
+    led.setPixelColor(0, led.Color(r, g, 0));
+    led.show();
+
+    // Keeps the preview color visible for 5 seconds (the web app will send updates upon movement or every 3 seconds)
+    ledPreviewUntil = millis() + 5000;
+  }
+  else
+  {
+    Serial.print("LED TEST COMMAND PARSING ERROR: ");
+    Serial.println(params);
+  }
+}
+
+void saveTestValues()
+{
+  cpycharar(ledOrder, testOrder, 3);
+  ledBright = testBright;
+  yellowRatio = testRedPct;
+
+  EXT_RAM_BSS_ATTR static char fileBuffer[PORTAL_BUFFER_SIZE];
+
+  // Load the file into a buffer (even a multi-line one)
+  if (loadConfigFileToBuffer(fileBuffer, PORTAL_BUFFER_SIZE))
+  {
+    // We validate it and compress it
+    JsonDocument doc;
+    DeserializationError error = deserializeJson(doc, fileBuffer);
+    if (!error) // update values
+    {
+      doc["led_order"] = testOrder;
+      doc["led_bright"] = testBright;
+      doc["led_yel_mix"] = testRedPct;
+
+      // If the JSON is valid, we serialize it and write it to LittleFS.
+      EXT_RAM_BSS_ATTR static char serializeBuffer[PORTAL_BUFFER_SIZE];
+      serializeJsonPretty(doc, serializeBuffer, PORTAL_BUFFER_SIZE);
+      if (saveConfigFile(serializeBuffer))
+      {
+        Serial.println("DEBUG: Configuration written to LittleFS successfully.");
+      }
+    }
+    else
+    {
+      Serial.println("\nCONFIG_DATA:{\"error\":\"Invalid local JSON file\"}");
+    }
+  }
+  ledPreviewUntil = 0;
+}
+
+/**
+ * Non-blocking circular serial reader for loop().
+ * Operates exclusively using indices within a char array located in PSRAM.
+ */
+void checkSerialPortalInput()
+{
+  while (Serial.available() > 0)
+  {
+    char incomingChar = (char)Serial.read();
+
+    if (incomingChar == '\n' || incomingChar == '\r')
+    {
+      if (serialWriteIndex == 0)
+        continue;
+      serialInputBuffer[serialWriteIndex] = '\0';
+      if (strcmp(serialInputBuffer, "GET_CONFIG") == 0)
+      {
+        handleGetConfig();
+      }
+      else if (strcmp(serialInputBuffer, "PREPARE_WRITE") == 0)
+      {
+        Serial.println("DEBUG: Preparing for write. Stopping audio...");
+        audio.stopSong(); // Stop audio immediately to free up core processing time
+
+        // Flush any residue noise out of the hardware buffer
+        while (Serial.available() > 0)
+          Serial.read();
+        serialWriteIndex = 0;
+      }
+      else if (strncmp(serialInputBuffer, "SET_CONFIG:", 11) == 0)
+      {
+        // Process the data stream immediately as it arrives in safe chunks
+        handleSetConfig(serialInputBuffer);
+      }
+      else if (strncmp(serialInputBuffer, "LED_TEST:", 9) == 0)
+      {
+        handleLedTest(serialInputBuffer + 9);
+      }
+      else if (strcmp(serialInputBuffer, "LED_TEST_END") == 0)
+      {
+        ledPreviewUntil = 0;
+        // Returns the stored chip type and brightness from config.json (in case the user clicked Cancel)
+        led.updateType((strcmp(ledOrder, "RGB") == 0 ? NEO_RGB : NEO_GRB) + NEO_KHZ800);
+        led.setBrightness((255 * ledBright) / 100);
+        setStatusLed(currentStatusColor);
+      }
+      else if (strcmp(serialInputBuffer, "LED_TEST_SAVE") == 0) // the user clicked Save
+      {
+        saveTestValues();
+        led.updateType((strcmp(ledOrder, "RGB") == 0 ? NEO_RGB : NEO_GRB) + NEO_KHZ800);
+        led.setBrightness((255 * ledBright) / 100);
+        setStatusLed(currentStatusColor);
+      }
+      serialWriteIndex = 0;
+    }
+    else
+    {
+      if (serialWriteIndex < (PORTAL_BUFFER_SIZE - 1))
+      {
+        serialInputBuffer[serialWriteIndex++] = incomingChar;
+      }
+      else
+      {
+        serialWriteIndex = 0;
+      }
+    }
+  }
+}
+
+bool saveConfigFile(const char *jsonContent)
+{
+  // We use strlen to determine the actual length of the text in bytes
+  size_t textLength = strlen(jsonContent);
+  if (textLength == 0)
+    return false;
+
+  // FILE_WRITE automatically overwrites and clears the old file.
+  File f = LittleFS.open("/config.json", FILE_WRITE);
+  if (f)
+  {
+    // A short pause for FreeRTOS task stability
+    vTaskDelay(5 / portTICK_PERIOD_MS);
+
+    // Recording the full length of the string
+    size_t bytesWritten = f.write((const uint8_t *)jsonContent, textLength);
+    f.close();
+
+    // Checking whether everything was actually recorded
+    return (bytesWritten == textLength);
+  }
+  return false;
+}
+
+/**
+ * Reads config.json from LittleFS directly into the provided char array.
+ * Completely without heap allocation and without the String type.
+ */
+bool loadConfigFileToBuffer(char *buffer, size_t bufferSize)
+{
+  if (!LittleFS.exists("/config.json"))
+  {
+    Serial.println("DEBUG: config.json does not exist.");
+    return false;
+  }
+
+  File file = LittleFS.open("/config.json", "r");
+  if (!file || file.isDirectory())
+  {
+    Serial.println("DEBUG: Failed to open config.json for reading.");
+    return false;
+  }
+
+  size_t fileSize = file.size();
+  if (fileSize >= bufferSize)
+  {
+    Serial.println("DEBUG: config.json is too large for the allocated buffer.");
+    file.close();
+    return false;
+  }
+
+  // Reading the entire file at once directly into the PSRAM buffer
+  size_t bytesRead = file.readBytes(buffer, fileSize);
+  buffer[bytesRead] = '\0'; // Proper termination of a C-string
+
+  file.close();
+  return true;
+}
+
 void setup()
 {
   Audio::audio_info_callback = audio_info;
   Serial.begin(115200);
   vTaskDelay(5000 / portTICK_PERIOD_MS); // Wait for PlatformIO monitor to start
   led.begin();
-  led.setPixelColor(0, YELLOW);
-  led.show();
   ESP_LOGW(TAG, "=========================================================================");
   ESP_LOGI(TAG, "MiniRadioZero - VERSION %s", STRINGIFY(VERSION));
   ESP_LOGI(TAG, "ESP32 Chip model = %s Rev %d\n", ESP.getChipModel(), ESP.getChipRevision());
@@ -910,6 +1208,26 @@ void setup()
       {
         defstat = json["defstat"].as<uint8_t>();
       }
+      if (json["led_order"].is<const char *>())
+      {
+        cpycharar(ledOrder, json["led_order"].as<const char *>(), 3);
+      }
+      if (json["led_bright"].is<int>())
+      {
+        ledBright = json["led_bright"].as<int>();
+      }
+      if (json["led_yel_mix"].is<int>())
+      {
+        yellowRatio = json["led_yel_mix"].as<int>();
+      }
+
+      uint8_t r = (255 * yellowRatio) / 100;
+      uint8_t g = 255 - r;
+      uint32_t yellow = Adafruit_NeoPixel::Color(r, g, 0);
+      led.updateType((strcmp(ledOrder, "RGB") == 0 ? NEO_RGB : NEO_GRB) + NEO_KHZ800);
+      led.setBrightness((255 * ledBright) / 100);
+      setStatusLed(yellow);
+
       ESP_LOGI(TAG, "Default station: %s, %s", presets[defstat].name, presets[defstat].url);
       ESP_LOGI(TAG, "Default volume: %d", reqvol);
 
@@ -974,7 +1292,7 @@ void setup()
           {
             ESP_LOGW(TAG, "NTP Sync timeout! Processing will continue in background.");
           }
-          // 3. Set intervals and the sync notification callback
+          // 7. Set intervals and the sync notification callback
           sntp_set_sync_interval(60000 * ntpInterval);
           sntp_set_time_sync_notification_cb(timeavailable);
 
@@ -986,8 +1304,6 @@ void setup()
           else
           {
             ESP_LOGI(TAG, "mDNS responder started");
-            // Optional: if the ESP32 is running a webserver on port 80
-            // MDNS.addService("http", "tcp", 80);
           }
           NBNS.begin(hostname);
           ESP_LOGI(TAG, "NetBIOS responder started");
@@ -997,26 +1313,36 @@ void setup()
         else // wifi not found
         {
           ESP_LOGW(TAG, "No known WiFi network was found !");
-
-          WiFi.mode(WIFI_AP_STA);
-          // STAmode = false;
-          // IPAddress IP = config.apaddress;IPAddress zeroaddr(0, 0, 0, 0);
-          IPAddress IP(192, 168, 4, 1);
-          IPAddress NMask(255, 255, 255, 0);
-          WiFi.softAPConfig(IP, IP, NMask);
-          WiFi.softAP("MiniRadioZero");
-#ifdef SETTXPOWER
-          WiFi.setTxPower(WIFI_POWER_8_5dBm);
-#endif
-          IPAddress myIP = WiFi.softAPIP();
-          ESP_LOGI(TAG, "AP IP address: \"%d.%d.%d.%d\"", myIP[0], myIP[1], myIP[2], myIP[3]);
-          WF_MODE = WF_AP;
-          startOTA();
-          led.setPixelColor(0, WHITE);
-          led.show();
+          shouldAP = true;
 
         } // wifi not found
       }
+      else // wlannum = 0
+      {
+        shouldAP = true;
+      }
+    }
+    else // config not found
+    {
+      shouldAP = true;
+    }
+    if (shouldAP)
+    {
+      WiFi.mode(WIFI_AP_STA);
+      // STAmode = false;
+      // IPAddress IP = config.apaddress;IPAddress zeroaddr(0, 0, 0, 0);
+      IPAddress IP(192, 168, 4, 1);
+      IPAddress NMask(255, 255, 255, 0);
+      WiFi.softAPConfig(IP, IP, NMask);
+      WiFi.softAP("MiniRadioZero");
+#ifdef SETTXPOWER
+      WiFi.setTxPower(WIFI_POWER_8_5dBm);
+#endif
+      IPAddress myIP = WiFi.softAPIP();
+      ESP_LOGI(TAG, "AP IP address: \"%d.%d.%d.%d\"", myIP[0], myIP[1], myIP[2], myIP[3]);
+      WF_MODE = WF_AP;
+      startOTA();
+      setStatusLed(WHITE);
     }
   }
   audio.setPinout(I2S_BCLK, I2S_LRC, I2S_DOUT);
@@ -1031,6 +1357,12 @@ void setup()
 
 void loop()
 {
+  checkSerialPortalInput();
+  if ((ledPreviewUntil > 0) && (millis() >= ledPreviewUntil))
+  {
+    ledPreviewUntil = 0;
+    setStatusLed(currentStatusColor);
+  }
   if (WF_MODE == WF_WAITSTA)
   {
     if (!rcnnct)
@@ -1074,16 +1406,14 @@ void loop()
     {
       if (!muteflag)
       {
-        led.setPixelColor(0, GREEN);
-        led.show();
+        setStatusLed(GREEN);
       }
       else if (unmute_)
       {
         muteflag = false;
         unmute_ = false;
         audio.setVolume(reqvol);
-        led.setPixelColor(0, GREEN);
-        led.show();
+        setStatusLed(GREEN);
       }
       audio.connecttohost(presets[currstat].url);
       ESP_LOGI(TAG, "I am tuning to station \"%s\"", presets[currstat].name);
@@ -1113,16 +1443,14 @@ void loop()
             {
               unmute_ = true;
             }
-            led.setPixelColor(0, BLUE);
-            led.show();
+            setStatusLed(BLUE);
           }
           else if (muteflag && unmute_)
           {
             muteflag = false;
             unmute_ = false;
             audio.setVolume(reqvol);
-            led.setPixelColor(0, GREEN);
-            led.show();
+            setStatusLed(GREEN);
           }
           oldschedule = validschedule;
         }
@@ -1143,7 +1471,7 @@ void loop()
     ESP_LOGW(TAG, "System is going to reboot ...");
     ESP.restart();
   }
-  vTaskDelay(1);
+  vTaskDelay(1 / portTICK_PERIOD_MS);
 }
 
 void WiFiEvent(WiFiEvent_t event, arduino_event_info_t info)
@@ -1178,8 +1506,7 @@ void WiFiEvent(WiFiEvent_t event, arduino_event_info_t info)
       rcnnct = false;
       audio.stopSong();
       WF_MODE = WF_WAITSTA;
-      led.setPixelColor(0, WHITE);
-      led.show();
+      setStatusLed(WHITE);
     }
     cpycharar(s, "ARDUINO_EVENT_WIFI_STA_DISCONNECTED", 36);
     break;

@@ -1,0 +1,1006 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>
+      MiniRadioZero Portal
+    </title>
+    <link href="styles.css" rel="stylesheet" />
+    <script src="i18n.js" defer>
+    </script>
+    <script src="javascript.js" defer>
+    </script>
+  </head>
+  <body>
+    <!-- Custom Modal Dialog Box -->
+    <div id="custom-modal" class="modal-overlay">
+      <div class="modal-box">
+        <div id="modal-icon" class="modal-icon-success">
+          ✓
+        </div>
+        <h3 id="modal-title" style="margin-top: 0; color: #ffffff; font-size: 18px">
+          Notification
+        </h3>
+        <p
+      id="modal-message"
+      style="color: #94a3b8; font-size: 14px; line-height: 1.5; margin: 15px 0 20px 0;"
+    >
+          Message content goes here.
+        </p>
+        <!-- Container for buttons -->
+        <div style="display: flex; gap: 10px; width: 100%;">
+          <button
+        type="button"
+        class="btn-secondary"
+        id="modal-cancel-btn"
+        data-i18n="modalCancelBtn"
+        style="width: 100%; display: none;"
+      >
+            Cancel
+          </button>
+          <button
+        type="button"
+        class="btn-primary"
+        id="modal-ok-btn"
+        data-i18n="modalCloseBtn"
+        style="width: 100%;"
+      >
+            OK
+          </button>
+        </div>
+      </div>
+    </div>
+    <div id="custom-modal2"  class="modal-overlay">
+      <div class="modal-box">
+        <h3 data-i18n="LEDcalibr" style="margin-top: 0; margin-bottom: 8px; text-align: left;">
+          Status LED Calibration
+        </h3>
+        <!-- Step 1: Detekce RGB/GRB -->
+        <div>
+          <h3
+      data-i18n="colorCheck"
+      style="color: #38bdf8; font-size: 15px; margin: 0px 0px 5px; text-align: left;"
+    >
+            Color sequence check
+          </h3>
+          <p
+            id="colorbuttons"
+            data-i18n="LEDlit"
+            style="
+              color: #94a3b8;
+              margin: 5px 0;
+              font-size: 14px;
+              text-align: left;
+            "
+          >
+            The LED should now be lit
+            <b>
+              red
+            </b>
+            . What color do you see?
+          </p>
+          <div style="display: flex; gap: 8px;">
+            <button id="rgb_btn" data-i18n="litRed" type="button" class="btn-secondary" onclick="setLedOrder('RGB')" style="flex:1; padding: 8px; cursor: pointer;">
+              🔴 Lit up red
+            </button>
+            <button id="grb_btn" data-i18n="litGreen"type="button" class="btn-secondary"onclick="setLedOrder('GRB')" style="flex:1; padding: 8px; cursor: pointer;">
+              🟢 Lit up green
+            </button>
+            <span  id="led_ind"
+            style="
+              width: 15%;
+              padding: 5px;
+              background: rgba(15, 23, 42, 0.4);
+              border: 1px solid #334155;
+              border-radius: 8px;
+              font-size: 20px;
+            "
+          >
+              RGB
+            </span>
+          </div>
+        </div>
+        <!-- Step 2: Brightness  -->
+        <div id="sliders">
+          <div style="margin-bottom: 12px;">
+            <h3
+      data-i18n="brSet"
+      style="color: #38bdf8; font-size: 15px; margin: 18px 0px 5px; text-align: left;"
+    >
+              Brightness settings
+            </h3>
+            <div style="margin-top: 5px;">
+              <label style="display: flex; justify-content: space-between;">
+                <span data-i18n="brghtnss">
+                  Brightness (0–100 %):
+                </span>
+                <span id="valBr">
+                  66
+                </span>
+              </label>
+              <input type="range" id="sliderBr" min="0" max="100" value="66" style="width: 100%; margin-top: -5px;" oninput="onSliderBrChange()">
+            </div>
+          </div style="margin-bottom: 12px;">
+          <!-- Step 3: Yellow Mix -->
+          <div>
+            <h3
+      data-i18n="adjShade"
+      style="color: #38bdf8; font-size: 15px; margin: 5px 0px 5px; text-align: left;"
+    >
+              Adjusting the shade of yellow
+            </h3>
+            <div style="margin-top: 5px;">
+              <label style="display: flex; justify-content: space-between;">
+                <span data-i18n="redRatio">
+                  redRatio:Podíl červené v poměru R:G (0–100 %):Share of red in the R:G ratio (0–100%):
+                </span>
+                <span id="valYel">
+                  50
+                </span>
+              </label>
+              <input type="range" id="sliderYel" min="0" max="100" value="50" style="width: 100%; margin-top: -5px;" oninput="onSliderYelChange()">
+            </div>
+          </div>
+        </div>
+        <div style="display: flex; justify-content: flex-end; gap: 10px;">
+          <button data-i18n="modalCancelBtn" type="button" class="btn-secondary" style="width:100%;" id="modal-cancel-btn2">
+            Cancel
+          </button>
+          <button data-i18n="saveBtn" type="button" class="btn-primary" style="width:100%;" id="modal-ok-btn2">
+            Use the set values
+          </button>
+        </div>
+      </div>
+    </div>
+    <div class="container">
+      <!-- Header & Language Switcher -->
+      <div
+        class="flex-row"
+        style="
+          margin-top: -5px;
+          margin-bottom: 10px;
+          border-bottom: 1px solid #1e293b;
+          padding-bottom: 5px;
+        "
+      >
+        <div>
+          <h1
+            id="lbl-title"
+            data-i18n="title"
+            style="margin: 0; font-size: 24px"
+          >
+            MiniRadioZero - Installation & Setup
+          </h1>
+          <p
+            id="lbl-subtitle"
+            data-i18n="subtitle"
+            style="color: #94a3b8; font-size: 14px; margin-top: 5px"
+          >
+            Web portal for initial flashing and radio configuration
+          </p>
+        </div>
+        <div
+          style="
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            min-width: 60px;
+            justify-content: flex-end;
+          "
+        >
+          <button
+            id="btn-en"
+            onclick="changeLanguage('en')"
+            class="lang-btn font-bold"
+          >
+            EN
+          </button>
+          <span style="color: #334155">
+            |
+          </span>
+          <button id="btn-cs" onclick="changeLanguage('cs')" class="lang-btn">
+            CS
+          </button>
+        </div>
+      </div>
+      <!-- Navigation Tabs -->
+      <div style="display: flex; gap: 12px; margin-bottom: 12px">
+        <button
+          id="tab-install"
+          onclick="switchTab('install')"
+          class="nav-btn active"
+          data-i18n="tabInstall"
+        >
+          📥 Initial Installation
+        </button>
+        <button
+          id="tab-upgrade"
+          onclick="switchTab('upgrade')"
+          class="nav-btn"
+          data-i18n="tabUpgrade"
+        >
+          📥 Upgrade
+        </button>
+        <button
+          id="tab-config"
+          onclick="switchTab('config')"
+          class="nav-btn"
+          data-i18n="tabConfig"
+        >
+          ⚙️ Configuration (Cable or File)
+        </button>
+      </div>
+      <main>
+        <!-- 1. TAB: INSTALLATION -->
+        <section id="content-install" class="card">
+          <h2
+            id="lbl-flash-heading"
+            data-i18n="flashHeading"
+            style="margin: 0px 0px 8px; font-size: 20px"
+          >
+            Flash Firmware
+          </h2>
+          <!-- Block containing firmware version information from the version.json -->
+          <div
+            style="
+              display: flex;
+              gap: 20px;
+              margin: 8px 0;
+              padding: 10px 14px;
+              background: rgba(15, 23, 42, 0.4);
+              border: 1px solid #334155;
+              border-radius: 8px;
+              font-size: 13px;
+            "
+          >
+            <div>
+              <span
+                data-i18n="version"
+                style="
+                  color: #94a3b8;
+                  font-weight: bold;
+                  text-transform: uppercase;
+                "
+                >
+                Version
+              </span
+              >
+              :
+              <span
+                class="version"
+                style="color: #38bdf8; font-weight: bold"
+                >
+                ---
+              </span
+              >
+            </div>
+            <div>
+              <span
+                data-i18n="builddate"
+                style="
+                  color: #94a3b8;
+                  font-weight: bold;
+                  text-transform: uppercase;
+                "
+                >
+                Build Date
+              </span
+              >
+              :
+              <span class="builddate" style="color: #38bdf8; font-weight: bold"
+                >
+                ---
+              </span
+              >
+            </div>
+          </div>
+          <div
+            style="
+              color: #94a3b8;
+              font-size: 13px;
+              background: rgba(15, 23, 42, 0.3);
+              padding: 16px;
+              border-radius: 8px;
+            "
+          >
+            <p
+              id="lbl-req-heading"
+              data-i18n="reqHeading"
+              style="
+                font-weight: bold;
+                color: #f8fafc;
+                margin-top: 0;
+                margin-bottom: 5px;
+              "
+            >
+              💡 Requirements for a successful flash:
+            </p>
+            <ul style="list-style-type: disc; padding-left: 20px; margin: 0">
+              <li data-i18n="req1" style="margin-bottom: 4px">
+                Google Chrome or Microsoft Edge browser on a PC.
+              </li>
+              <li data-i18n="req2" style="margin-bottom: 4px">
+                Connect the board using a data USB cable.
+              </li>
+              <li data-i18n="req3">
+                After installation, upload the LittleFS filesystem via your
+                usual USB or OTA interface.
+              </li>
+            </ul>
+          </div>
+          <p
+            id="lbl-flash-text"
+            data-i18n="flashText"
+            style="
+              color: #94a3b8;
+              margin: 8px 0 -5px;
+              font-size: 14px;
+              line-height: 1.6;
+            "
+          >
+            This step writes the complete merged firmware image to your
+            ESP32-S3. All previous data on the chip will be erased.
+          </p>
+          <div class="flex-row"
+            style="
+              text-align: left;
+              padding: 5px;
+              margin-bottom: 5px;
+            "
+          >
+            <button
+                id="installBtn"
+                data-i18n="flashBtn"
+                class="btn-primary"
+                style="min-width: 200px;"
+              >
+              Upload Firmware to Radio
+            </button>
+            <!-- status -->
+            <span  id="status0"
+            style="
+              display: flex;
+              width: 50%;
+              min-height: 1lh;
+              gap: 20px;
+              margin: 5px 0;
+              padding: 10px 14px;
+              background: rgba(15, 23, 42, 0.4);
+              border: 1px solid #334155;
+              border-radius: 8px;
+              font-size: 13px;
+            "
+          >
+            </span>
+          </div>
+          <div>
+            <pre data-i18n="ready" id="sermon0" class="serial-monitor" style="margin:5px 0px 5px">
+              Ready...\n
+            </pre>
+          </div>
+        </section>
+        <!-- 2. TAB: UPGRADE -->
+        <section id="content-upgrade" class="card hidden">
+          <h2
+            id="lbl-upgrade-heading"
+            data-i18n="upgradeHeading"
+            style="margin: 0px 0px 8px; font-size: 20px"
+          >
+            Upgrade Firmware
+          </h2>
+          <!-- Block containing firmware version information from the version.json -->
+          <div
+            style="
+              display: flex;
+              gap: 20px;
+              margin: 8px 0;
+              padding: 10px 14px;
+              background: rgba(15, 23, 42, 0.4);
+              border: 1px solid #334155;
+              border-radius: 8px;
+              font-size: 13px;
+            "
+          >
+            <div>
+              <span
+                data-i18n="version"
+                style="
+                  color: #94a3b8;
+                  font-weight: bold;
+                  text-transform: uppercase;
+                "
+                >
+                Version
+              </span
+              >
+              :
+              <span
+                class="version"
+                style="color: #38bdf8; font-weight: bold"
+                >
+                ---
+              </span
+              >
+            </div>
+            <div>
+              <span
+                data-i18n="builddate"
+                style="
+                  color: #94a3b8;
+                  font-weight: bold;
+                  text-transform: uppercase;
+                "
+                >
+                Build Date
+              </span
+              >
+              :
+              <span class="builddate" style="color: #38bdf8; font-weight: bold"
+                >
+                ---
+              </span
+              >
+            </div>
+          </div>
+          <div
+            style="
+              color: #94a3b8;
+              font-size: 13px;
+              background: rgba(15, 23, 42, 0.3);
+              padding: 16px;
+              border-radius: 8px;
+            "
+          >
+            <p
+              id="lbl-req-heading"
+              data-i18n="reqHeading"
+              style="
+                font-weight: bold;
+                color: #f8fafc;
+                margin-top: 0;
+                margin-bottom: 5px;
+              "
+            >
+              💡 Requirements for a successful flash:
+            </p>
+            <ul style="list-style-type: disc; padding-left: 20px; margin: 0">
+              <li data-i18n="req1" style="margin-bottom: 4px">
+                Google Chrome or Microsoft Edge browser on a PC.
+              </li>
+              <li data-i18n="req2" style="margin-bottom: 4px">
+                Connect the board using a data USB cable.
+              </li>
+            </ul>
+          </div>
+          <p
+            id="lbl-upgrade-text"
+            data-i18n="upgradeText"
+            style="
+              color: #94a3b8;
+              margin: 8px 0 -5px;
+              font-size: 14px;
+              line-height: 1.6;
+            "
+          >
+            Only an update will be performed. All data will be preserved.
+          </p>
+          <div class="flex-row"
+            style="
+              text-align: left;
+              padding: 5px;
+              margin-bottom: 5px;
+            "
+          >
+            <button
+                id="updateBtn"
+                data-i18n="upgradeBtn"
+                class="btn-primary"
+                style="min-width: 200px;"
+               >
+              Upgrade Firmware
+            </button>
+            <!-- status -->
+            <span  id="status1"
+            style="
+              display: flex;
+              width: 50%;
+              min-height: 1lh;
+              gap: 20px;
+              margin: 5px 0;
+              padding: 10px 14px;
+              background: rgba(15, 23, 42, 0.4);
+              border: 1px solid #334155;
+              border-radius: 8px;
+              font-size: 13px;
+            "
+          >
+            </span>
+          </div>
+          <div>
+            <pre data-i18n="ready" id="sermon1" class="serial-monitor" style="margin:5px 0px 5px">
+              Ready...\n
+            </pre>
+          </div>
+        </section>
+        <!-- 3. TAB: CONFIGURATION -->
+        <section id="content-config" class="card hidden">
+          <div
+            class="flex-row"
+            style="
+              padding-bottom: 15px;
+              margin-bottom: 5px;
+            "
+          >
+            <div>
+              <h2
+                id="lbl-config-heading"
+                data-i18n="configHeading"
+                style="margin: 0px 0px 8px; font-size: 20px"
+             >
+                Manage Configuration
+              </h2>
+              <p
+                id="lbl-config-sub"
+                data-i18n="configSub"
+                style="color: #94a3b8; font-size: 14px; margin: 4px 0 0 0"
+              >
+                Read and write settings directly over the serial line or via
+                backup files
+              </p>
+            </div>
+            <!-- Hidden native file search tool -->
+            <input
+              type="file"
+              id="file-loader-input"
+              accept=".json"
+              onchange="readFile(this)"
+              style="display: none"
+            />
+            <span  id="status2"
+            style="
+              display: flex;
+              width: 40%;
+              min-height: 1lh;
+              gap: 20px;
+              margin: 5px 0;
+              padding: 10px 14px;
+              background: rgba(15, 23, 42, 0.4);
+              border: 1px solid #334155;
+              border-radius: 8px;
+              font-size: 13px;
+            "
+          >
+            </span>
+          </div>
+          <!-- Group of new buttons -->
+          <div style="display: flex; gap: 8px; padding-bottom: 12px; border-bottom: 1px solid #334155;" class="flex-row">
+            <button
+                type="button"
+                onclick="readConfigFromFile()"
+                class="btn-cmd"
+                data-i18n="configReadFileBtn"
+              >
+              📁 Read from File
+            </button>
+            <button
+                type="button"
+                onclick="saveConfigToFile()"
+                class="btn-cmd"
+                data-i18n="configSaveFileBtn"
+              >
+              💾 Save to File
+            </button>
+            <button
+                type="button"
+                onclick="readSerial()"
+                id="lbl-config-load-btn"
+                class="btn-cmd"
+                data-i18n="configLoadBtn"
+              >
+              🔌 Read from Radio
+            </button>
+            <button
+                type="button"
+                onclick="saveConfigToRadio()"
+                class="btn-cmd"
+                id="lbl-config-save-btn"
+                class="btn-primary"
+                data-i18n="configSaveBtn"
+              >
+              🔌 Write to Radio
+            </button>
+          </div>
+          <form id="config-form">
+            <div class="config-layout">
+              <!-- Configuration Sub-Navigation Sidebar -->
+              <div class="config-sidebar">
+                <button
+                  data-i18n="general"
+                  id="subtab-general"
+                  type="button"
+                  class="sub-btn active"
+                  onclick="switchSubTab('general')"
+                >
+                  📋 General & NTP
+                </button>
+                <button
+                  data-i18n="stations"
+                  id="subtab-radio"
+                  type="button"
+                  class="sub-btn"
+                  onclick="switchSubTab('radio')"
+                >
+                  📻 Radio Stations
+                </button>
+                <button
+                  data-i18n="scheduler"
+                  id="subtab-scheduler"
+                  type="button"
+                  class="sub-btn"
+                  onclick="switchSubTab('scheduler')"
+                >
+                  ⏰ Scheduler
+                </button>
+                <button
+                  data-i18n="netProfiles"
+                  id="subtab-network"
+                  type="button"
+                  class="sub-btn"
+                  onclick="switchSubTab('network')"
+                >
+                  🌐 Network Profiles
+                </button>
+              </div>
+              <!-- Active Panels Panel Matrix -->
+              <div class="config-panels">
+                <!-- SUB-PANEL 1: GENERAL & NTP -->
+                <div id="panel-general" class="sub-panel">
+                  <h3
+                    data-i18n="globalsettings"
+                    style="color: #38bdf8; font-size: 15px; margin: 5px 0px 5px;"
+                  >
+                    Global System Settings
+                  </h3>
+                  <div class="form-grid-3">
+                    <div>
+                      <label data-i18n="hostname">
+                        Hostname
+                      </label>
+                      <input
+                        type="text"
+                        id="cfg-hostname"
+                        placeholder="MiniRadioZero"
+                        style= "margin: 8px 0px 4px;"
+                      />
+                    </div>
+                    <div>
+                      <label data-i18n="defvol">
+                        Default Volume
+                      </label>
+                      <input
+                        type="number"
+                        id="cfg-defvol"
+                        min="0"
+                        max="100"
+                        placeholder="50"
+                        style= "margin: 8px 0px 4px;"
+                      />
+                    </div>
+                    <div>
+                      <label data-i18n="defstat">
+                        Default Station ID
+                      </label>
+                      <input
+                        type="number"
+                        id="cfg-defstat"
+                        min="0"
+                        placeholder="0"
+                        style= "margin: 8px 0px 4px;"
+                      />
+                    </div>
+                  </div>
+                  <h3
+                    data-i18n="ntpprotocol"
+                    style="color: #38bdf8; font-size: 15px; margin: 14px 0px 5px;"
+                  >
+                    Network Time Protocol (NTP)
+                  </h3>
+                  <div class="form-grid-2">
+                    <div>
+                      <!-- Tooltip for NTP Server with a tooltip -->
+                      <label>
+                        <span data-i18n="ntpServerLabel">
+                          NTP Server
+                        </span>
+                        <span class="tooltip-container">
+                          <span class="tooltip-trigger">
+                            ?
+                          </span>
+                          <span id="tip-ntp" class="tooltip-content"
+                            >
+                            Help text
+                          </span
+                          >
+                        </span>
+                      </label>
+                      <input
+                        type="text"
+                        id="cfg-ntp-server"
+                        placeholder="pool.ntp.org"
+                        style= "margin: 8px 0px 4px;"
+                      />
+                    </div>
+                    <div>
+                      <label data-i18n="interval">
+                        Interval (Minutes)
+                      </label>
+                      <input
+                        type="number"
+                        id="cfg-ntp-interval"
+                        placeholder="15"
+                        style= "margin: 8px 0px 4px;"
+                      />
+                    </div>
+                  </div>
+                  <div class="form-grid-2">
+                    <div>
+                      <!-- Caption for Timezone Expression with a tooltip -->
+                      <label>
+                        <span data-i18n="ntpTimezoneLabel"
+                          >
+                          Timezone Expression
+                        </span
+                        >
+                        <span class="tooltip-container">
+                          <span class="tooltip-trigger">
+                            ?
+                          </span>
+                          <span id="tip-tz" class="tooltip-content"
+                            >
+                            Help text
+                          </span
+                          >
+                        </span>
+                      </label>
+                      <input
+                        type="text"
+                        id="cfg-ntp-timezone"
+                        placeholder="CET-1CEST..."
+                        style= "margin: 8px 0px 4px;"
+                      />
+                    </div>
+                    <div>
+                      <label data-i18n="regionname">
+                        Timezone Region Name
+                      </label>
+                      <input
+                        type="text"
+                        id="cfg-ntp-tzname"
+                        placeholder="Europe/Prague"
+                        style= "margin: 8px 0px 4px;"
+                      />
+                    </div>
+                  </div>
+                  <h3
+                    data-i18n="ledStatus"
+                    style="color: #38bdf8; font-size: 15px; margin: 14px 0px 5px;"
+                  >
+                    RGB LED Status
+                  </h3>
+                  <div class="form-grid-2">
+                    <input type="hidden" id="led_type" value="RGB">
+                    <input type="hidden" id="led_bright" value="66">
+                    <input type="hidden" id="led_yel" value="50">
+                    <div>
+                      <!-- Tooltip for NTP Server with a tooltip -->
+                      <label>
+                        <span data-i18n="ledSettings">
+                          RGB Led Settings
+                        </span>
+                        <span class="tooltip-container">
+                          <span class="tooltip-trigger">
+                            ?
+                          </span>
+                          <span data-i18n="rgbLabel" id="rgbLabel" class="tooltip-content"
+                            >
+                            Help text
+                          </span
+                          >
+                        </span>
+                      </label>
+                      <div>
+                        <span  id="preview_label"
+            style="
+              display: flex;
+              width: 80%;
+              margin: 8px 0px 4px;
+              padding: 7px;
+              background: rgba(15, 23, 42, 0.4);
+              border: 1px solid #334155;
+              border-radius: 8px;
+              font-size: 20px;
+            "
+          >
+                          RGB 66 50
+                        </span>
+                      </div>
+                    </div>
+                    <div>
+                      <label>
+                        <span data-i18n="brYelCal">
+                          Brightness & Yellow Calibration
+                        </span>
+                        <span class="tooltip-container">
+                          <span class="tooltip-trigger">
+                            ?
+                          </span>
+                          <span data-i18n="ledCal" id="ledCal" class="tooltip-content"
+                            >
+                            Help text
+                          </span
+                          >
+                        </span>
+                      </label>
+                      <button
+                type="button"
+                onclick="openLedCalibrator()"
+                class="btn-cmd"
+                id="lbl-config-save-btn"
+                class="btn-primary"
+                data-i18n="calibrLED"
+                style= "margin: 8px 0px 4px; width: 100%"
+              >
+                        🎨 Calibrate LED
+                      </button>
+                    </div>
+                  </div>
+                </div>
+                <!-- SUB-PANEL 2: RADIO STATIONS -->
+                <div id="panel-radio" class="sub-panel hidden">
+                  <div class="flex-row" style="margin-bottom: 12px">
+                    <h3 style="color: #38bdf8; font-size: 15px; margin: 0">
+                      <span data-i18n="streams">
+                        Radio Streams
+                      </span>
+                      (
+                      <span
+                        id="count-radio"
+                        >
+                        0
+                      </span
+                      >
+                      /16)
+                    </h3>
+                    <button
+                      data-i18n="addStation"
+                      type="button"
+                      class="add-btn"
+                      onclick="addRadioRow()"
+                    >
+                      + Add Station
+                    </button>
+                  </div>
+                  <div id="container-radio">
+                  </div>
+                </div>
+                <!-- SUB-PANEL 3: SCHEDULER -->
+                <div id="panel-scheduler" class="sub-panel hidden">
+                  <h3
+                    data-i18n="schedConfig"
+                    style="color: #38bdf8; font-size: 15px; margin-top: 0"
+                  >
+                    Scheduler Configuration
+                  </h3>
+                  <div class="form-grid-2" style="margin-bottom: 15px">
+                    <div style="display: flex; align-items: center; gap: 8px">
+                      <input
+                        type="checkbox"
+                        id="cfg-sched-enabled"
+                        style="width: auto; margin: 0"
+                      />
+                      <label data-i18n="enableSched" for="cfg-sched-enabled"
+                        >
+                        Enable Global Scheduler
+                      </label
+                      >
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 8px">
+                      <input
+                        type="checkbox"
+                        id="cfg-sched-unmute"
+                        style="width: auto; margin: 0"
+                      />
+                      <label data-i18n="unmute" for="cfg-sched-unmute"
+                        >
+                        Unmute on trigger event
+                      </label
+                      >
+                    </div>
+                  </div>
+                  <div class="flex-row" style="margin-bottom: 12px">
+                    <h3 style="color: #38bdf8; font-size: 14px; margin: 0">
+                      <span data-i18n="schedItems">
+                        Scheduled Items
+                      </span>
+                      (
+                      <span
+                        id="count-scheduler"
+                        >
+                        0
+                      </span
+                      >
+                      /32)
+                    </h3>
+                    <div style="display: flex; gap: 8px">
+                      <button
+                        data-i18n="sort"
+                        type="button"
+                        class="add-btn"
+                        style="background: #475569"
+                        onclick="updateSchedulerOrder()"
+                      >
+                        ↕ Sort
+                      </button>
+                      <button
+                        data-i18n="addTask"
+                        type="button"
+                        class="add-btn"
+                        onclick="addSchedulerRow()"
+                      >
+                        + Add Task
+                      </button>
+                    </div>
+                  </div>
+                  <div id="container-scheduler">
+                  </div>
+                </div>
+                <!-- SUB-PANEL 4: NETWORK PROFILES -->
+                <div id="panel-network" class="sub-panel hidden">
+                  <div class="flex-row" style="margin-bottom: 12px">
+                    <h3 style="color: #38bdf8; font-size: 15px; margin: 0">
+                      <span data-i18n="wifinets"
+                        >
+                        WiFi Network Configuration
+                      </span
+                      >
+                      (
+                      <span id="count-network">
+                        0
+                      </span>
+                      /8)
+                    </h3>
+                    <button
+                      data-i18n="addProfile"
+                      type="button"
+                      class="add-btn"
+                      onclick="addNetworkRow()"
+                    >
+                      + Add Profile
+                    </button>
+                  </div>
+                  <div id="container-network">
+                  </div>
+                </div>
+              </div>
+            </div>
+          </form>
+        </section>
+      </main>
+      <footer
+        id="lbl-footer"
+        style="
+          text-align: center;
+          color: #475569;
+          font-size: 12px;
+          margin-top: 20px;
+          border-top: 1px solid #334155;
+          padding-top: 10px;
+        "
+        data-i18n="footer"
+      >
+        MiniRadioZero Project • Powered by GitHub Pages and Web Serial API
+      </footer>
+    </div>
+  </body>
+</html>

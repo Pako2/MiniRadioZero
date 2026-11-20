@@ -1,5 +1,5 @@
 # Resetting the console to its default system state (black background)
-$VER = "1.0.0"
+$VER = "1.1.0"
 $TXT = "exit"
 $PartTable = "miniradiozero.csv"
 
@@ -26,7 +26,7 @@ function Write-Menu {
 }
 
 # Searching for files
-$radiofile = (Get-ChildItem ".\firmware\radio*.bin" -ErrorAction SilentlyContinue | Select-Object -First 1).FullName
+$firmwarefile = (Get-ChildItem ".\firmware\firmware.bin" -ErrorAction SilentlyContinue | Select-Object -First 1).FullName
 
 # Port autodetect feature
 function Get-AutodetectedPort {
@@ -266,7 +266,7 @@ switch ($opt) {
         Write-Menu "--------------------------------------------------`n`nFlash Firmware via USB" -color "Yellow"
         $com = Get-ComPort
         if ($com) {
-         & .\utilities\esptool.exe --chip esp32s3 --port "$com" --baud 460800 --before default-reset --after hard-reset write-flash -z --flash-mode dio --flash-freq 80m --flash-size 4MB 0x0000 .\firmware\bootloader.bin 0x8000 .\firmware\partitions.bin 0xe000 .\firmware\boot_app0.bin $script:APP0_Offset "$radiofile"
+         & .\utilities\esptool.exe --chip esp32s3 --port "$com" --baud 460800 --before default-reset --after hard-reset write-flash -z --flash-mode dio --flash-freq 80m --flash-size 4MB 0x0000 .\firmware\bootloader.bin 0x8000 .\firmware\partitions.bin 0xe000 .\firmware\boot_app0.bin $script:APP0_Offset "$firmwarefile"
                 } else {
           $valid = $false
         }
@@ -275,7 +275,7 @@ switch ($opt) {
         Write-Menu "--------------------------------------------------`n`nFlash Firmware via USB" -color "Yellow"
         $com = Get-ComPort
         if ($com) {
-        & .\utilities\esptool.exe --chip esp32s3 --port "$com" --baud 460800 --before default-reset --after hard-reset write-flash -z --flash-mode dio --flash-freq 80m --flash-size 4MB $script:APP0_Offset "$radiofile"
+        & .\utilities\esptool.exe --chip esp32s3 --port "$com" --baud 460800 --before default-reset --after hard-reset write-flash -z --flash-mode dio --flash-freq 80m --flash-size 4MB $script:APP0_Offset "$firmwarefile"
                 } else {
           $valid = $false
         }

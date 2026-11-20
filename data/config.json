@@ -2,7 +2,10 @@
   "defvol": 50,
   "defstat": 0,
   "hostname": "MiniRadioZero",
-  "ntp": {
+  "led_order": "RGB",
+  "led_bright": 60,
+  "led_yel_mix": 80,
+"ntp": {
     "server": "cz.pool.ntp.org",
     "interval": 15,
     "timezone": "CET-1CEST,M3.5.0,M10.5.0/3",

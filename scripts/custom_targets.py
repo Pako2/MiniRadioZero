@@ -467,7 +467,8 @@ def upload_custom_app(*args, **kwargs):
             version = item[ix+8:]
             break
     bin_dir = os.path.join('tool', 'firmware')
-    bin_path = os.path.join(bin_dir, '%s_v%s.bin' % (prefixes[current_env], version))
+    #bin_path = os.path.join(bin_dir, '%s_v%s.bin' % (prefixes[current_env], version))
+    bin_path = os.path.join(bin_dir, 'firmware.bin')
     
     # We determine which partition we are looking for in the table based on the active environment
     SubTypes = {"miniradiozero":"app0"}
